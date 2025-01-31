@@ -1,0 +1,40 @@
+name: Pylint
+
+
+on:
+  push:
+    branches:
+      - 001-DEVELOPMENT
+      - 002-TEST
+      - 003-PRODUCTION
+  workflow_dispatch: 
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pylint
+        grep -Ev '^(mediapipe|scikit-learn|pandas|pysmb)' requirements.txt > filtered-requirements.txt
+        pip install -r filtered-requirements.txt
+        pip install scikit-learn pandas pysmb
+        pip install -e src/
+        pip install -e pipeline/
+    - name: Analysing the code with pylint
+      run: |
+        pylint --output-format=colorized --disable=C0114,R0914,W0603,E1101 $(git ls-files '*.py') > pylint-report.txt
+      continue-on-error: true
+    - name: Print Pylint Report
+      run: |
+        echo "=== Pylint Report ==="
+        cat pylint-report.txt
