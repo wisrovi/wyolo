@@ -1,0 +1,42 @@
+# wyolo Configuration Template
+# Use this file as a reference for your own experiments.
+
+# --- Model Identification ---
+model: yolov8n.pt    # Model name or path to .pt/.yaml
+type: detect         # detect | segment | classify | pose | rtdetr
+
+# --- MLOps Configuration ---
+task_id: "unique-task-id-123"
+sweeper:
+  study_name: "my-first-study"
+
+mlflow:
+  uri: "http://localhost:5000"
+  experiment_name: "YOLO_Project"
+
+minio:
+  endpoint: "localhost:9000"
+  bucket: "artifacts"
+  access_key: "admin"
+  secret_key: "password"
+
+# --- Training Hyperparameters ---
+# All standard Ultralytics arguments are supported
+train:
+  data: "coco8.yaml"
+  epochs: 50
+  imgsz: 640
+  batch: 16          # Set to -1 for autobatch
+  patience: 10       # Early stopping
+  optimizer: "AdamW" # SGD, Adam, Adamax, AdamW, RMSProp
+  lr0: 0.01          # Initial learning rate
+  lrf: 0.01          # Final learning rate
+  device: 0          # GPU index or "cpu"
+  project: "runs/train"
+  name: "exp1"
+
+# --- Validation Settings ---
+val:
+  split: val
+  save_json: true
+  conf: 0.25
