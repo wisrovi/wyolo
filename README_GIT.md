@@ -14,17 +14,78 @@
 ### 1. 🚶 Execution Walkthrough (State Machine)
 The system operates as a deterministic pipeline governed by conditional logic. It ensures environment integrity before committing expensive GPU resources.
 
-*For a visual flowchart, please refer to [README_GIT.md](README_GIT.md).*
+```mermaid
+graph TD
+    Start([Start]) --> LoadConfig[load_yaml]
+    LoadConfig --> CheckMinIO[check_minio_buckets]
+    CheckMinIO --> CheckGPU[check_gpu_available]
+    CheckGPU --> CheckDataset[check_dataset]
+    CheckDataset --> Cond{gpu_status == 1 <br> AND <br> dataset_status == 1}
+    Cond -->|True| TrainModel[train_model]
+    Cond -->|False| ErrorTrap[error_capture]
+    TrainModel --> End([Completion])
+    ErrorTrap --> End
+```
 
 ### 2. 🗺️ Detailed System Workflow
 Sequence of operations between the orchestrator, specialized states, and external MLOps entities.
 
-*For the sequence interaction diagram, please refer to [README_GIT.md](README_GIT.md).*
+```mermaid
+sequenceDiagram
+    participant Main as Pipeline Orchestrator (wpipe)
+    participant States as Worker States (app.states)
+    participant Core as Core Trainer (core.trainer)
+    participant MLf as MLflow / MinIO
+
+    Main->>States: Step 1: load_yaml (Parse config)
+    Main->>States: Step 2: check_minio (Validate S3)
+    Main->>States: Step 3: check_gpu (Detect CUDA)
+    Main->>States: Step 4: check_dataset (Verify integrity)
+    alt Validation Success
+        Main->>States: Step 5: train_model
+        States->>Core: Invoke TrainerWrapper
+        Core->>MLf: Start Experiment & Run
+        Core->>MLf: Log Metrics & Upload Artifacts
+        MLf-->>Main: Return Registration URI
+    else Validation Failed
+        Main->>States: Invoke error_capture
+        States-->>Main: Log failure to Persistence DB
+    end
+```
 
 ### 3. 🗺️ Architecture Components
 A layered view of the ecosystem, illustrating the separation between orchestration, business logic, and infrastructure.
 
-*For the architectural mindmap, please refer to [README_GIT.md](README_GIT.md).*
+```mermaid
+graph LR
+    subgraph App_Layer [Worker Application]
+        SM[State Machine]
+        WS[Worker States]
+        Main[main.py]
+    end
+
+    subgraph Core_Layer [Core Engine]
+        TW[TrainerWrapper]
+        MM[MLflowManager]
+        GU[GPUUtils]
+    end
+
+    subgraph Infra_Layer [Infrastructure]
+        MLF[MLflow Server]
+        S3[MinIO / S3 Storage]
+        DVC[DVC Data Lake]
+        RED[Redis Messaging]
+    end
+
+    Main --> SM
+    SM --> WS
+    WS --> TW
+    TW --> MM
+    MM --> MLF
+    MM --> S3
+    WS --> DVC
+    Main --> RED
+```
 
 ---
 
