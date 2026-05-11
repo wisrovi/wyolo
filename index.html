@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>wyolo v1.0.0 | Professional YOLO MLOps Framework</title>
+    
+    <!-- SEO & Meta Tags -->
+    <meta name="description" content="wyolo v1.0.0: The ultimate Python framework for enterprise YOLO training. Native MLflow, DVC, and S3 integration for mission-critical computer vision pipelines.">
+    <meta name="keywords" content="python, yolo, yolov8, rtdetr, mlops, mlflow, dvc, computer vision, deep learning, wisrovi">
+    <meta name="author" content="William Steve Rodriguez Villamizar (wisrovi)">
+    <meta name="robots" content="index, follow">
+    
+    <!-- Open Graph / Social Media -->
+    <meta property="og:title" content="wyolo - Enterprise-Grade YOLO Training & MLOps">
+    <meta property="og:description" content="Orchestrate YOLO model lifecycles with native experiment tracking, data versioning, and automated registries.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://github.com/wisrovi/wyoloservice2_worker">
+    <meta property="og:image" content="https://raw.githubusercontent.com/wisrovi/wyoloservice2_worker/main/docs/source/_static/logo.png">
+    <meta property="og:site_name" content="wyolo">
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@wisrovi">
+    <meta name="twitter:title" content="wyolo v1.0.0 | Professional YOLO MLOps">
+    
+    <!-- Favicon (Procedural SVG) -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%23f59e0b'/><stop offset='100%25' style='stop-color:%23ef4444'/></linearGradient></defs><rect width='100' height='100' rx='20' fill='url(%23g)'/><path d='M30 70 L50 30 L70 70 M40 55 L60 55' stroke='white' stroke-width='8' stroke-linecap='round' stroke-linejoin='round' fill='none'/></svg>">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            /* Colors - Modern Amber & Deep Cyber Palette */
+            --primary: #f59e0b;
+            --primary-glow: rgba(245, 158, 11, 0.4);
+            --secondary: #ef4444;
+            --secondary-glow: rgba(239, 68, 68, 0.4);
+            --accent: #10b981;
+            --bg-deep: #020617;
+            --bg-card: rgba(15, 23, 42, 0.6);
+            --bg-card-hover: rgba(30, 41, 59, 0.8);
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --text-muted: #64748b;
+            --border: rgba(255, 255, 255, 0.08);
+            --border-highlight: rgba(245, 158, 11, 0.3);
+            
+            /* Gradients */
+            --gradient-linear: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+            --gradient-mesh: radial-gradient(at 0% 0%, hsla(35, 100%, 50%, 0.1) 0, transparent 50%), 
+                             radial-gradient(at 100% 100%, hsla(0, 100%, 50%, 0.1) 0, transparent 50%);
+            --gradient-surface: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 100%);
+            
+            /* Shadows */
+            --shadow-neo: 0 20px 25px -5px rgb(0 0 0 / 0.5), 0 8px 10px -6px rgb(0 0 0 / 0.5);
+            --shadow-glow: 0 0 30px var(--primary-glow);
+            
+            /* Config */
+            --transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            --container-max: 1200px;
+        }
+
+        /* Base */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            line-height: 1.6;
+            overflow-x: hidden;
+            background-image: var(--gradient-mesh);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Layout */
+        .container { max-width: var(--container-max); margin: 0 auto; padding: 0 2rem; }
+        section { padding: 100px 0; position: relative; }
+
+        /* Typography */
+        h1, h2, h3, h4 { font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
+        .gradient-text {
+            background: var(--gradient-linear);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
+            padding: 1.5rem 0;
+            transition: var(--transition);
+            border-bottom: 1px solid transparent;
+        }
+        nav.scrolled {
+            background: rgba(2, 6, 23, 0.85);
+            backdrop-filter: blur(15px);
+            padding: 1rem 0;
+            border-color: var(--border);
+        }
+        .nav-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.5rem;
+            font-weight: 800;
+            text-decoration: none;
+            color: var(--text-main);
+        }
+        .logo i {
+            background: var(--gradient-linear);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .nav-links { display: flex; gap: 2.5rem; align-items: center; }
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-dim);
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: var(--transition);
+        }
+        .nav-links a:hover { color: var(--primary); }
+        .btn-nav {
+            background: var(--gradient-linear);
+            color: var(--bg-deep) !important;
+            padding: 0.6rem 1.5rem;
+            border-radius: 50px;
+            box-shadow: var(--shadow-glow);
+        }
+
+        /* Hero */
+        .hero {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            overflow: hidden;
+            padding-top: 80px;
+        }
+        .hero-bg-fx {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, rgba(245, 158, 11, 0.05) 0%, transparent 70%);
+            z-index: -1;
+        }
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid var(--border-highlight);
+            padding: 0.5rem 1.25rem;
+            border-radius: 100px;
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 0.85rem;
+            margin-bottom: 2rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            animation: fadeInUp 0.8s ease;
+        }
+        .hero h1 {
+            font-size: clamp(3rem, 8vw, 6rem);
+            margin-bottom: 1.5rem;
+            animation: fadeInUp 1s ease 0.1s both;
+        }
+        .hero p {
+            font-size: clamp(1.1rem, 2vw, 1.4rem);
+            color: var(--text-dim);
+            max-width: 800px;
+            margin: 0 auto 3rem;
+            animation: fadeInUp 1.2s ease 0.2s both;
+        }
+        .hero-btns {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            animation: fadeInUp 1.4s ease 0.3s both;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1.2rem 2.5rem;
+            border-radius: 12px;
+            font-weight: 700;
+            text-decoration: none;
+            transition: var(--transition);
+            font-size: 1.1rem;
+            cursor: pointer;
+        }
+        .btn-main {
+            background: var(--gradient-linear);
+            color: var(--bg-deep);
+            box-shadow: var(--shadow-glow);
+        }
+        .btn-main:hover { transform: translateY(-5px); box-shadow: 0 0 40px var(--primary-glow); }
+        .btn-outline {
+            background: transparent;
+            color: var(--text-main);
+            border: 1px solid var(--border);
+        }
+        .btn-outline:hover { background: rgba(255,255,255,0.05); border-color: var(--primary); transform: translateY(-3px); }
+
+        /* Stats Bar */
+        .stats-bar {
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            padding: 3rem 0;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 3rem;
+            text-align: center;
+        }
+        .stat-item h3 {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-main);
+            font-weight: 800;
+        }
+        .stat-item p {
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+        }
+
+        /* Features */
+        .section-header { text-align: center; margin-bottom: 5rem; }
+        .section-header h2 { font-size: 3.5rem; margin-bottom: 1.5rem; }
+        .section-header p { color: var(--text-dim); font-size: 1.2rem; max-width: 600px; margin: 0 auto; }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+        }
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 3rem;
+            border-radius: 24px;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--gradient-surface);
+            pointer-events: none;
+        }
+        .feature-card:hover {
+            transform: translateY(-10px);
+            border-color: var(--border-highlight);
+            background: var(--bg-card-hover);
+            box-shadow: var(--shadow-neo);
+        }
+        .feature-icon {
+            width: 64px;
+            height: 64px;
+            background: rgba(245, 158, 11, 0.1);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            color: var(--primary);
+            margin-bottom: 2rem;
+        }
+        .feature-card h3 { font-size: 1.5rem; margin-bottom: 1rem; }
+        .feature-card p { color: var(--text-dim); margin-bottom: 1.5rem; }
+
+        /* Code Section */
+        .code-showcase {
+            background: #010409;
+            border-radius: 32px;
+            border: 1px solid var(--border);
+            padding: 4rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+        }
+        .code-content h2 { margin-bottom: 2rem; }
+        .code-content p { color: var(--text-dim); margin-bottom: 2rem; font-size: 1.1rem; }
+        .code-window {
+            background: #0d1117;
+            border-radius: 16px;
+            padding: 1.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: #e6edf3;
+            box-shadow: var(--shadow-neo);
+            border: 1px solid #30363d;
+            position: relative;
+        }
+        .code-header {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 1.5rem;
+        }
+        .dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot-red { background: #ff5f56; }
+        .dot-yellow { background: #ffbd2e; }
+        .dot-green { background: #27c93f; }
+
+        /* Wisrovi Ecosystem */
+        .ecosystem {
+            text-align: center;
+            background: linear-gradient(180deg, transparent, rgba(245, 158, 11, 0.05));
+        }
+        .eco-card {
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            padding: 4rem;
+            border-radius: 40px;
+            border: 2px solid var(--border-highlight);
+            box-shadow: var(--shadow-glow);
+        }
+        .eco-card img { width: 120px; border-radius: 30px; margin-bottom: 2rem; }
+        .eco-card h3 { font-size: 2.5rem; margin-bottom: 1.5rem; }
+        .eco-card p { font-size: 1.2rem; color: var(--text-dim); margin-bottom: 2.5rem; }
+
+        /* Footer */
+        footer {
+            padding: 80px 0 40px;
+            border-top: 1px solid var(--border);
+            background: rgba(15, 23, 42, 0.8);
+        }
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 4rem;
+            margin-bottom: 4rem;
+        }
+        .footer-brand p { color: var(--text-dim); margin: 1.5rem 0; max-width: 300px; }
+        .footer-links h4 { margin-bottom: 1.5rem; font-size: 1.1rem; }
+        .footer-links ul { list-style: none; }
+        .footer-links li { margin-bottom: 0.75rem; }
+        .footer-links a { color: var(--text-muted); text-decoration: none; transition: var(--transition); }
+        .footer-links a:hover { color: var(--primary); padding-left: 5px; }
+        .footer-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+        .social-links { display: flex; gap: 1.5rem; }
+        .social-links a { font-size: 1.5rem; color: var(--text-muted); transition: var(--transition); }
+        .social-links a:hover { color: var(--primary); transform: scale(1.2); }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Responsive */
+        @media (max-width: 968px) {
+            .footer-grid { grid-template-columns: 1fr 1fr; }
+            .code-showcase { grid-template-columns: 1fr; padding: 2rem; }
+            .hero h1 { font-size: 3.5rem; }
+            .nav-links { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navigation -->
+    <nav id="navbar">
+        <div class="container nav-content">
+            <a href="#" class="logo">
+                <i class="fas fa-eye"></i> wyolo
+            </a>
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#mlops">MLOps</a>
+                <a href="#ecosystem">Ecosystem</a>
+                <a href="https://wyolo.readthedocs.io/" target="_blank">Docs</a>
+                <a href="https://github.com/wisrovi/wyoloservice2_worker" class="btn-nav">
+                    <i class="fab fa-github"></i> GitHub
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-bg-fx"></div>
+        <div class="container">
+            <div class="hero-badge">
+                <i class="fas fa-rocket"></i> v1.0.0 — Production Ready YOLO
+            </div>
+            <h1>Enterprise <span class="gradient-text">YOLO</span> Orchestration</h1>
+            <p>
+                wyolo is the definitive framework for scaling YOLOv8 and RT-DETR training. 
+                Seamlessly integrated with MLflow, DVC, and S3, it transforms computer vision 
+                experiments into industrial-grade pipelines.
+            </p>
+            <div class="hero-btns">
+                <a href="https://github.com/wisrovi/wyoloservice2_worker" class="btn btn-main">
+                    Get Started <i class="fas fa-chevron-right"></i>
+                </a>
+                <a href="https://wyolo.readthedocs.io/" class="btn btn-outline">
+                    Read Documentation
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <div class="stats-bar">
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <h3>100%</h3>
+                    <p>Automated Pipelines</p>
+                </div>
+                <div class="stat-item">
+                    <h3>9.5+</h3>
+                    <p>Pylint Score</p>
+                </div>
+                <div class="stat-item">
+                    <h3>MLflow</h3>
+                    <p>Native Integration</p>
+                </div>
+                <div class="stat-item">
+                    <h3>GPU</h3>
+                    <p>Optimized Workers</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Features Section -->
+    <section id="features">
+        <div class="container">
+            <div class="section-header">
+                <span class="gradient-text" style="font-weight: 800; text-transform: uppercase;">Core Capabilities</span>
+                <h2>Scalable Computer <span class="gradient-text">Vision</span></h2>
+                <p>Designed for organizations that need to manage hundreds of models with total traceability.</p>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
+                    <h3>Native MLflow</h3>
+                    <p>Automatic logging of metrics, hyperparameters, and artifacts. One-click model registration in the enterprise registry.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-database"></i></div>
+                    <h3>DVC Traceability</h3>
+                    <p>Track every byte of your training data. Full reproducibility guaranteed through native Data Version Control integration.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-microchip"></i></div>
+                    <h3>Auto-Batch Optimization</h3>
+                    <p>Intelligent GPU memory detection. Automatically scales batch sizes to maximize throughput without OOM errors.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-project-diagram"></i></div>
+                    <h3>State Machine Workers</h3>
+                    <p>Robust worker implementation that handles dataset checks, GPU verification, and training cycles with error recovery.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-box-open"></i></div>
+                    <h3>S3/MinIO Storage</h3>
+                    <p>Centralized artifact management. Sync your weights, plots, and results to secure enterprise storage automatically.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-terminal"></i></div>
+                    <h3>Headless CLI</h3>
+                    <p>Powerful command-line interface for CI/CD integration and hyperparameter tuning sweeps.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Code Showcase -->
+    <section id="mlops">
+        <div class="container">
+            <div class="code-showcase">
+                <div class="code-content">
+                    <span class="gradient-text" style="font-weight: 800; text-transform: uppercase;">Developer First</span>
+                    <h2>Simple API, <br><span class="gradient-text">Infinite Power</span></h2>
+                    <p>Initialize a trainer with your enterprise config and let wyolo handle the complexities of MLOps lifecycle.</p>
+                    <ul style="list-style: none; color: var(--text-dim);">
+                        <li style="margin-bottom: 1rem;"><i class="fas fa-check-circle" style="color: var(--primary); margin-right: 10px;"></i> Automatic experiment creation</li>
+                        <li style="margin-bottom: 1rem;"><i class="fas fa-check-circle" style="color: var(--primary); margin-right: 10px;"></i> Real-time GPU monitoring</li>
+                        <li style="margin-bottom: 1rem;"><i class="fas fa-check-circle" style="color: var(--primary); margin-right: 10px;"></i> Automated weight uploading</li>
+                    </ul>
+                </div>
+                <div class="code-window">
+                    <div class="code-header">
+                        <div class="dot dot-red"></div>
+                        <div class="dot dot-yellow"></div>
+                        <div class="dot dot-green"></div>
+                    </div>
+                    <span style="color: #ff7b72;">from</span> wyolo.core <span style="color: #ff7b72;">import</span> TrainerWrapper<br><br>
+                    <span style="color: #8b949e;"># Standardized Config</span><br>
+                    config = {<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #a5d6ff;">"model"</span>: <span style="color: #a5d6ff;">"yolov8n.pt"</span>,<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #a5d6ff;">"mlflow"</span>: {<span style="color: #a5d6ff;">"uri"</span>: <span style="color: #a5d6ff;">"http://mlflow.corp"</span>}<br>
+                    }<br><br>
+                    <span style="color: #8b949e;"># Power up the training</span><br>
+                    trainer = TrainerWrapper(config=config)<br>
+                    trainer.create_model(<span style="color: #a5d6ff;">"yolov8n.pt"</span>, <span style="color: #a5d6ff;">"detect"</span>)<br>
+                    trainer.train(config_train=config[<span style="color: #a5d6ff;">"train"</span>])
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Wisrovi Ecosystem -->
+    <section id="ecosystem" class="ecosystem">
+        <div class="container">
+            <div class="eco-card">
+                <img src="https://wisrovi.dev/assets/img/logo.png" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%23f59e0b%22/></svg>'" alt="Wisrovi">
+                <h3>Wisrovi <span class="gradient-text">Ecosystem</span></h3>
+                <p>
+                    wyolo is part of the Wisrovi AI suite, designed to bridge the gap between 
+                    academic research and industrial computer vision implementation.
+                </p>
+                <a href="https://wisrovi.dev/" target="_blank" class="btn btn-main">
+                    Visit wisrovi.dev <i class="fas fa-external-link-alt"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section>
+        <div class="container" style="text-align: center;">
+            <h2 style="font-size: 3.5rem; margin-bottom: 2rem;">Build your <span class="gradient-text">Vision</span> with wyolo</h2>
+            <div class="hero-btns">
+                <a href="https://github.com/wisrovi/wyoloservice2_worker" class="btn btn-main">Star on GitHub</a>
+                <a href="https://pypi.org/project/wyolo/" class="btn btn-outline">Install via PyPI</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <a href="#" class="logo">
+                        <i class="fas fa-eye"></i> wyolo
+                    </a>
+                    <p>The enterprise-grade framework for YOLO model training, tracking, and deployment.</p>
+                    <div class="social-links">
+                        <a href="https://github.com/wisrovi" target="_blank"><i class="fab fa-github"></i></a>
+                        <a href="https://es.linkedin.com/in/wisrovi-rodriguez" target="_blank"><i class="fab fa-linkedin"></i></a>
+                    </div>
+                </div>
+                <div class="footer-links">
+                    <h4>Technology</h4>
+                    <ul>
+                        <li><a href="#features">MLflow Tracking</a></li>
+                        <li><a href="#features">DVC Versioning</a></li>
+                        <li><a href="#features">GPU Optimization</a></li>
+                        <li><a href="https://wyolo.readthedocs.io/" target="_blank">Documentation</a></li>
+                    </ul>
+                </div>
+                <div class="footer-links">
+                    <h4>Community</h4>
+                    <ul>
+                        <li><a href="https://github.com/wisrovi/wyoloservice2_worker/releases">Releases</a></li>
+                        <li><a href="https://github.com/wisrovi/wyoloservice2_worker/issues">Issue Tracker</a></li>
+                        <li><a href="https://github.com/wisrovi/wyoloservice2_worker/blob/main/CONTRIBUTING.md">Contributing</a></li>
+                    </ul>
+                </div>
+                <div class="footer-links">
+                    <h4>Developer</h4>
+                    <ul>
+                        <li><a href="https://wisrovi.dev/">Wisrovi.dev</a></li>
+                        <li><a href="https://github.com/wisrovi">GitHub Profile</a></li>
+                        <li><a href="mailto:wisrovi.rodriguez@gmail.com">Contact</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024-2026 William Steve Rodriguez Villamizar. MIT Licensed.</p>
+                <p>Designed with <i class="fas fa-heart" style="color: var(--secondary);"></i> for the AI Community.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Navbar scroll effect
+        window.addEventListener('scroll', function() {
+            const nav = document.getElementById('navbar');
+            if (window.scrollY > 50) {
+                nav.classList.add('scrolled');
+            } else {
+                nav.classList.remove('scrolled');
+            }
+        });
+
+        // Intersection Observer for animations
+        const observerOptions = { threshold: 0.1 };
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.feature-card, .eco-card').forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(20px)';
+            el.style.transition = 'all 0.6s ease-out';
+            observer.observe(el);
+        });
+    </script>
+</body>
+</html>
