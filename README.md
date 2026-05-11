@@ -1,173 +1,163 @@
-# wyolo: Professional YOLO MLOps Framework
+# wyolo: Professional YOLO MLOps Orchestrator
 
 [![Pylint Score](https://img.shields.io/badge/Pylint-9.5%2B-green.svg)](https://www.pylint.org/)
 [![Security: Bandit](https://img.shields.io/badge/Security-Bandit-yellow.svg)](https://github.com/PyCQA/bandit)
 [![Python 3.8+](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-**wyolo** is a high-performance, enterprise-grade Python library designed to orchestrate the entire lifecycle of YOLO and RT-DETR models. By integrating native MLOps capabilities, `wyolo` transforms experimental computer vision into production-ready automated pipelines.
+**wyolo** is an enterprise-grade framework designed to manage the full lifecycle of YOLO and RT-DETR models. By leveraging a robust **State Machine** architecture and native **MLOps** integrations, `wyolo` provides a high-resiliency environment for computer vision training, tracking, and deployment.
 
 ---
 
-### 1. 🚶 Diagram Walkthrough
-The following diagram illustrates the high-level execution flow from user request to model registration.
+## 🏗️ Architecture & System Design
+
+### 1. 🚶 Execution Walkthrough (State Machine)
+The system operates as a deterministic pipeline governed by conditional logic. It ensures environment integrity before committing expensive GPU resources.
 
 ```mermaid
 graph TD
-    A[User/Worker Request] --> B{Configuration Loader}
-    B --> C[Environment Validator]
-    C -->|Success| D[GPU/Batch Optimizer]
-    C -->|Failure| E[Error Capture & Notification]
-    D --> F[Dataset Synchronization - DVC]
-    F --> G[YOLO/RT-DETR Training Loop]
-    G --> H[Metrics & Logs - MLflow]
-    H --> I[Artifact Storage - MinIO/S3]
-    I --> J[Model Registry]
-    J --> K[Execution Completed]
+    Start([Start]) --> LoadConfig[load_yaml]
+    LoadConfig --> CheckMinIO[check_minio_buckets]
+    CheckMinIO --> CheckGPU[check_gpu_available]
+    CheckGPU --> CheckDataset[check_dataset]
+    CheckDataset --> Cond{gpu_status == 1 <br> AND <br> dataset_status == 1}
+    Cond -->|True| TrainModel[train_model]
+    Cond -->|False| ErrorTrap[error_capture]
+    TrainModel --> End([Completion])
+    ErrorTrap --> End
 ```
 
----
-
-### 2. 🗺️ System Workflow
-Detailed sequence of events during a critical training operation, highlighting the interaction between core components.
+### 2. 🗺️ Detailed System Workflow
+Sequence of operations between the orchestrator, specialized states, and external MLOps entities.
 
 ```mermaid
 sequenceDiagram
-    participant U as User/Worker
-    participant TW as TrainerWrapper
-    participant MM as MLflowManager
-    participant ULY as Ultralytics Engine
-    participant S3 as MinIO Storage
+    participant Main as Pipeline Orchestrator (wpipe)
+    participant States as Worker States (app.states)
+    participant Core as Core Trainer (core.trainer)
+    participant MLf as MLflow / MinIO
 
-    U->>TW: Initialize(config)
-    TW->>MM: Setup Experiment & Run
-    TW->>ULY: Start Training(hyperparameters)
-    loop Every Epoch
-        ULY-->>TW: Metrics Update
-        TW->>MM: Log Metrics (mAP, Loss)
+    Main->>States: Step 1: load_yaml (Parse config)
+    Main->>States: Step 2: check_minio (Validate S3)
+    Main->>States: Step 3: check_gpu (Detect CUDA)
+    Main->>States: Step 4: check_dataset (Verify integrity)
+    alt Validation Success
+        Main->>States: Step 5: train_model
+        States->>Core: Invoke TrainerWrapper
+        Core->>MLf: Start Experiment & Run
+        Core->>MLf: Log Metrics & Upload Artifacts
+        MLf-->>Main: Return Registration URI
+    else Validation Failed
+        Main->>States: Invoke error_capture
+        States-->>Main: Log failure to Persistence DB
     end
-    ULY-->>TW: Final Model (.pt)
-    TW->>S3: Upload Artifacts
-    TW->>MM: Register Model Version
-    MM-->>U: Final Status & Registry Link
 ```
 
----
-
-### 3. 🏗️ Architecture Components
-Static structure and dependencies of the `wyolo` ecosystem.
+### 3. 🗺️ Architecture Components
+A layered view of the ecosystem, illustrating the separation between orchestration, business logic, and infrastructure.
 
 ```mermaid
-mindmap
-  root((wyolo System))
-    Core Layer
-      TrainerWrapper
-      MLflowManager
-      GPUUtils
-    App Layer (Worker)
-      State Machine
-      Check States (GPU, Dataset)
-      Train State
-    External Integrations
-      Ultralytics (YOLOv8, RT-DETR)
-      MLflow (Tracking, Registry)
-      DVC (Data Versioning)
-      Redis (Messaging)
-    Infrastructure
-      Docker (Containerization)
-      MinIO/S3 (Storage)
+graph LR
+    subgraph App_Layer [Worker Application]
+        SM[State Machine]
+        WS[Worker States]
+        Main[main.py]
+    end
+
+    subgraph Core_Layer [Core Engine]
+        TW[TrainerWrapper]
+        MM[MLflowManager]
+        GU[GPUUtils]
+    end
+
+    subgraph Infra_Layer [Infrastructure]
+        MLF[MLflow Server]
+        S3[MinIO / S3 Storage]
+        DVC[DVC Data Lake]
+        RED[Redis Messaging]
+    end
+
+    Main --> SM
+    SM --> WS
+    WS --> TW
+    TW --> MM
+    MM --> MLF
+    MM --> S3
+    WS --> DVC
+    Main --> RED
 ```
 
 ---
 
-### 4. ⚙️ Container Lifecycle
+## ✨ Key Features & Performance
 
-#### a. Build Process
-The construction of the production-ready artifact follows a multi-stage approach:
-1.  **Base Image Selection:** Utilizes NVIDIA CUDA-enabled Python images for GPU acceleration.
-2.  **Dependency Resolution:** Installation of system-level libraries (`libgl1-mesa-glx`) and project dependencies via `pip`.
-3.  **Code Injection:** Surgical copying of the `src/` directory and configuration templates.
-4.  **Environment Sanitization:** Setting of non-root users and file permissions for secure execution.
-
-#### b. Runtime Process
-From instantiation to operational readiness:
-1.  **Entrypoint Execution:** The container starts via `train_service.sh`.
-2.  **State Initialization:** The `main.py` state machine loads the specific configuration.
-3.  **Resource Discovery:** Automatic detection of CUDA devices and available VRAM.
-4.  **Data Mounting:** CIFS/NFS mounts or DVC pulls to ensure dataset availability.
-5.  **Steady State:** The worker enters the training loop, reporting heartbeats to Redis/MLflow.
+- **🚀 State-Driven Orchestration:** Complex logic implemented via `wpipe` for maximum resiliency.
+- **🛡️ Quality-First Design:** Maintains **Pylint > 9.5** and regular **Bandit** security audits.
+- **📊 Native MLOps:** Built-in **MLflow** tracking, automated model registry, and **DVC** data versioning.
+- **⚡ Resource Efficiency:** Real-time monitoring of Peak RAM, CPU usage, and VRAM optimization.
+- **📦 Distributed Architecture:** Designed to run as an independent worker container (`wtrain-service`).
 
 ---
 
-### 5. 📂 File-by-File Guide
+## ⚙️ Lifecycle Management
 
-| Path | Purpose |
+### a. Build Process (CI/CD)
+1.  **Multi-Stage Dockerfile:** Optimizes image size while providing CUDA/CUDNN support.
+2.  **Environment Isolation:** Automatic resolution of complex dependencies (RT-DETR, MLflow, Redis).
+3.  **Sanity Checks:** Static analysis executed during the build phase.
+
+### b. Runtime Process (Execution)
+1.  **Initialization:** `train_service.sh` triggers the service wrapper.
+2.  **Discovery:** Automatic discovery of GPU topology and dataset paths.
+3.  **Orchestration:** The Pipeline engine manages retries, timeouts, and state transitions.
+4.  **Persistence:** Results and logs are persisted to `wtrain.db` (SQLite WAL) for audit trails.
+
+---
+
+## 📂 File-by-File Guide
+
+| Component | Description |
 |:---|:---|
-| `src/wyolo/core/` | Core logic for trainer wrappers, MLflow management, and GPU utilities. |
-| `src/wyolo/app/` | Production worker implementation using a robust state-machine architecture. |
-| `src/wyolo/trainer/` | Specialized model-type implementations and elemental DTOs. |
-| `src/wyolo/docker/` | Orchestration scripts and requirements for containerized environments. |
-| `pyproject.toml` | Project metadata, build system configuration, and dependency locks. |
-| `Makefile` | Standardized automation for installation, testing, and documentation. |
-| `tests/` | Comprehensive test suite ensuring behavioral and structural integrity. |
+| `src/wyolo/app/main.py` | Entry point. Configures the `wpipe` state machine and orchestrates the worker. |
+| `src/wyolo/app/states/` | Atomic state implementations (Check GPU, Dataset, MinIO, Train). |
+| `src/wyolo/core/` | Core logic for the `TrainerWrapper` and `MLflowManager`. |
+| `src/wyolo/docker/` | Production-ready orchestration scripts and requirements. |
+| `src/wyolo/trainer/` | Specialized DTOs and implementation of the Elemental design pattern. |
+| `Makefile` | The central command center for installation, testing, and deployment. |
+| `index.html` | High-impact landing page for project stakeholders. |
 
 ---
 
-## 🛠 Technical Stack
-- **Engine:** [Ultralytics](https://github.com/ultralytics/ultralytics) (YOLOv8, RT-DETR).
-- **Tracking:** [MLflow](https://mlflow.org/).
-- **Versioning:** [DVC](https://dvc.org/).
-- **Backend:** Python 3.8+ with [Loguru](https://github.com/Delgan/loguru) for logging.
-- **Containerization:** Docker with NVIDIA Container Toolkit.
-- **Quality:** Pytest, Pylint, Bandit.
-
----
-
-## 🚀 Installation & Setup
-
-### Environment Preparation
-```bash
-# Clone the repository
-git clone https://github.com/wisrovi/wyoloservice2_worker.git
-cd wyoloservice2_worker
-
-# Create and activate virtual environment
-python -m venv venv
-source venv/bin/activate
+## 📂 Project Structure
+```text
+src/wyolo
+├── app
+│   ├── main.py                <-- Orchestrator
+│   └── states                 <-- State Machine Steps
+│       ├── check/             <-- Validation Logic
+│       ├── train/             <-- Training Execution
+│       └── error_process/     <-- Resiliency Handling
+├── core
+│   ├── trainer_wrapper.py     <-- Engine Wrapper
+│   └── mlflow_manager.py      <-- MLOps Tracking
+└── docker
+    ├── train_service.sh       <-- Production Entrypoint
+    └── requirements.txt       <-- Locked Dependencies
 ```
 
-### Automation with Makefile
+---
+
+## 🚀 Installation & Usage
+
 ```bash
-# Install all dependencies (including dev)
+# 1. Setup environment
 make install
 
-# Run security and linting checks
+# 2. Run linting & security
 make lint
 
-# Execute test suite
-make test
-```
-
----
-
-## 📈 Configuration & Usage
-
-### Configuration (YAML)
-Create a `config.yaml` to define your experiment:
-```yaml
-model: yolov8n.pt
-type: detect
-train:
-  epochs: 100
-  imgsz: 640
-mlflow:
-  uri: "http://your-mlflow-server"
-```
-
-### Execution
-```bash
-# Run training via CLI
-wyolo-train --config_path config.yaml --fitness map50
+# 3. Execute training suite
+wyolo-train --config_path my_config.yaml
 ```
 
 ---
@@ -179,7 +169,7 @@ wyolo-train --config_path config.yaml --fitness map50
 
 ---
 
-## 📄 Bibliography & Source Resources
-- [Ultralytics Documentation](https://docs.ultralytics.com/)
-- [MLflow Guide](https://mlflow.org/docs/latest/index.html)
-- [DVC Official Tutorials](https://dvc.org/doc)
+## 📄 Bibliography & Resources
+- [Ultralytics Framework](https://docs.ultralytics.com/)
+- [MLflow MLOps Platform](https://mlflow.org/)
+- [wpipe Orchestration Library](https://github.com/wisrovi/wpipe)
