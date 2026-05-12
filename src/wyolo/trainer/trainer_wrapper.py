@@ -1,19 +1,22 @@
+import sys
 import os
 import time
 from datetime import datetime
 from typing import List
 import shutil
 import uuid
+import torch
 
 import mlflow
 from slugify import slugify
-from ultralytics import RTDETR, YOLO, settings
+from ultralytics import RTDETR, YOLO
 from ultralytics.utils.autobatch import autobatch
 import yaml
 from .gpu_utils import obtener_info_gpu_json
 from .cte.elemental import Elemental
 from .utils.mlflow_setup import Mlflow_setup
 from .dto.model_wrapper import MLflowYOLOModel
+from .gpu_utils import gpu_compatibility_check
 
 
 class TrainerWrapper(Elemental, Mlflow_setup):
@@ -45,27 +48,15 @@ class TrainerWrapper(Elemental, Mlflow_setup):
             task_id = self.config.get("task_id", "default_task")
 
             registered_model_name = f"{experiment_name}_{task_id}"
-            # Create the MLflow model
-            mlflow_model = MLflowYOLOModel(pytorch_model)
-            # Log using pytorch.log_model (this creates a proper MLflow model)
-            mlflow.pytorch.log_model(
-                pytorch_model=mlflow_model,
-                artifact_path="model",
-                registered_model_name=registered_model_name,
-                conda_env={
-                    "channels": ["defaults", "pytorch", "conda-forge"],
-                    "dependencies": [
-                        "python=3.8",
-                        "pytorch",
-                        "torchvision",
-                        "ultralytics",
-                        "mlflow",
-                        "numpy",
-                        "pillow",
-                        "pyyaml",
-                    ],
-                },
-            )
+            # Log the model as artifact instead (simpler approach)
+            try:
+                import torch
+
+                model_path = f"{self.ARTIFACTS_PATH}/pytorch_model.pth"
+                torch.save(pytorch_model.state_dict(), model_path)
+                mlflow.log_artifact(model_path, artifact_path="model")
+            except Exception as e:
+                print(f"Failed to log model: {e}")
 
             metrics = {
                 slugify(key): float(value) for key, value in trainer.metrics.items()
@@ -103,8 +94,6 @@ class TrainerWrapper(Elemental, Mlflow_setup):
                 except:
                     pass
 
-            shutil.copy2(self.config["config_path"], self.ARTIFACTS_PATH)
-
             self.artifacts_organice()
             mlflow.log_artifacts(self.ARTIFACTS_PATH)
 
@@ -115,7 +104,7 @@ class TrainerWrapper(Elemental, Mlflow_setup):
 
     def on_epoch_end(self, trainer):
         if self.firts_epoch:
-            self.firts_epoch = False
+            # self.firts_epoch = False
             self.artifacts_organice()
             mlflow.log_artifacts(self.ARTIFACTS_PATH)
 
@@ -170,39 +159,64 @@ class TrainerWrapper(Elemental, Mlflow_setup):
 
         raise StopIteration("Entrenamiento detenido por condición de callback.")
 
-    def train(self, config_train: dict):
+    def tune(self, CONFIG_TRAIN: dict, _generations: int):
         if self.model:
-            tune = self.config.get("sweeper", {}).get("tune", False)
-            if tune:
-                if isinstance(tune, bool):
-                    tune = 1
-                elif isinstance(tune, int):
-                    tune = max(1, tune)
-                    tune = min(tune, 100)
-                else:
-                    raise
 
-                grace_period = self.config.get("sweeper", {}).get("grace_period", 10)
-                epochs = self.config.get("train", {}).get("epochs", 10)
+            _grace_period = self.config.get("genetic", {}).get("min_epochs_by_ind", 10)
+            _other_parameters = self.config.get("genetic", {}).get(
+                "other_parameters", {}
+            )
+
+            _use_genetic = self.config.get("genetic", {}).get("use_genetic", False)
+            if _use_genetic:
+                # genetic algorithm
+                _use_ray = False
+                # Eficiencia: Lento (espera a terminar cada generación).
+                # Variación: Mutación: Altera valores previos.
+                # Herencia: Los hijos heredan rasgos de los padres.
+                # Selección: Los mejores "padres" sobreviven.
+
+                _other_parameters["optimizer"] = "SGD"  # Recomendado para evolución
+            else:
+                # ASHA (Asynchronous Successive Halving Algorithm)
+                # "Pruning" (Poda) de ensayos prematuros utilizando grace_period
+                _use_ray = True
+                # Eficiencia: Rápido (interrumpe ensayos prematuros).
+                # Variación: Muestreo: Elige valores nuevos del espacio definido.
+                # Herencia: Cada experimento suele ser independiente.
+                # Selección: Los peores se detienen (Poda).
 
                 # Ensure grace_period is positive and reasonable
-                grace_period = max(1, min(epochs, grace_period))
+                _epochs = self.config.get("train", {}).get("epochs", 10)
 
-                return self.model.tune(
-                    **config_train,
-                    iterations=tune,
-                    use_ray=True,
-                    grace_period=grace_period,
-                )
-            else:
-                # read env var MAX_GPU (user defined) for max gpu (value between 0 and 100)
-                # if not set, use default value (60%),
-                # if set to -1, use 60% of the gpu
-                MAX_GPU = float(os.environ.get("MAX_GPU", -5000.1))
+                _other_parameters["grace_period"] = max(1, min(_epochs, _grace_period))
 
-                config_train["batch"] = max(MAX_GPU / 100, -1)
+            # si algun parametros de _other_parameters ya existe en config_train
+            # se borra para evitar conflictos
+            _real_other_parameters = _other_parameters.copy()
+            for key in _other_parameters.keys():
+                if key in CONFIG_TRAIN:
+                    _real_other_parameters.pop(key)
 
-                return self.model.train(**config_train)
+            _iterations = max(2, min(100, _generations))
+
+            return self.model.tune(
+                **CONFIG_TRAIN,
+                iterations=_iterations,
+                use_ray=_use_ray,
+                **_real_other_parameters,
+            )
+
+    def train(self, config_train: dict):
+        if self.model:
+            # read env var MAX_GPU (user defined) for max gpu (value between 0 and 100)
+            # if not set, use default value (60%),
+            # if set to -1, use 60% of the gpu
+            MAX_GPU = float(os.environ.get("MAX_GPU", -5000.1))
+
+            config_train["batch"] = max(MAX_GPU / 100, -1)
+
+            return self.model.train(**config_train)
 
     def create_model(self, model_name, model_type):
         if model_type == "yolo":
@@ -237,6 +251,11 @@ def load_config(config_path: str):
 def create_trainer(config_path: str, trial_number):
     request_config = load_config(config_path=config_path)
     request_config["config_path"] = config_path
+
+    results_dir = request_config.get("tempfile")
+    if os.path.exists(results_dir):
+        shutil.rmtree(results_dir)
+        os.makedirs(results_dir, exist_ok=True)
 
     trainer = TrainerWrapper(config=request_config)
     trainer.create_model(
@@ -276,21 +295,143 @@ def create_trainer(config_path: str, trial_number):
 
 
 def train(trainer: TrainerWrapper, request_config: dict, fitness: str):
+    _data = request_config["train"].get("data", None)
+    if _data is None or not os.path.exists(_data):
+        raise FileNotFoundError(f"Data path not found: {_data}")
+
+    # Check for force_gpu in extras, default to False
+    force_gpu = request_config.get("extras", {}).get("force_gpu", False)
+    force_cpu = request_config.get("extras", {}).get("force_cpu", False)
+
+    if force_cpu:
+        print("Forcing CPU usage for training.")
+        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+        torch.cuda.is_available = lambda: False
+
+        request_config["train"]["device"] = "cpu"
+
+    elif gpu_compatibility_check(force_gpu):
+        request_config["train"]["device"] = "0"
+    else:
+        request_config["train"]["device"] = "cpu"
+
+    final_result = 0.0
+
     if "train" in request_config:
-        results = trainer.train(config_train=request_config["train"])
 
-        final_result = 0
+        if trainer.config.get("genetic", {}).get("activate", False):
+            # 0. Validacion que existan los parametros necesarios
+            NEED_PARAMS = [
+                "poblation_size",
+                "generations",
+                "min_epochs_by_ind",
+                "direction",
+                "fitness",
+            ]
+            for param in NEED_PARAMS:
+                if param not in trainer.config.get("genetic", {}):
+                    raise ValueError(
+                        f"Missing genetic parameter: {param} in configuration."
+                    )
 
-        if results:
-            request_config["experiment_type"] = str(results.task)
-            request_config["train"]["results"] = results.results_dict
+            _poblation_size = trainer.config.get("genetic", {}).get(
+                "poblation_size", 10
+            )
+            _generations = trainer.config.get("genetic", {}).get("generations", 10)
 
-            try:
-                final_result = request_config["train"]["results"][fitness]
-            except:
-                final_result = request_config["train"]["results"]["fitness"]
+            start_time = datetime.now().isoformat()
 
-            print(f"ResultadoFinal:{final_result}")
+            # 1. Iniciar proceso de tuning genético
+            # ---------------------------------------
+            # ---------------------------------------
+            #      Proceso de evolución genética
+            # ---------------------------------------
+            # ---------------------------------------
+            _real_generations = _generations * _poblation_size
+            tune_results = trainer.tune(
+                CONFIG_TRAIN=request_config["train"],
+                _generations=_real_generations,
+            )
+            # ---------------------------------------
+            # ---------------------------------------
+
+            # 2. Guardar resultados del tuning
+            _use_genetic = trainer.config.get("genetic", {}).get("use_genetic", False)
+            if _use_genetic:
+                # genetic algorithm
+                try:
+                    experiment_path = tune_results.experiment_path
+                    shutil.copytree(
+                        experiment_path,
+                        trainer.ARTIFACTS_PATH + "/tune_results",
+                        dirs_exist_ok=True,
+                    )
+                except Exception as e:
+                    print(f"Error copying tune results: {e}")
+            else:
+                # ASHA (by ray tune)
+                experiment_path = tune_results.experiment_path
+                shutil.copytree(
+                    experiment_path,
+                    trainer.ARTIFACTS_PATH + "/tune_results",
+                    dirs_exist_ok=True,
+                )
+
+            # 3. Obtener el mejor resultado basado en una métrica (ejemplo: accuracy)
+            _mode = trainer.config.get("genetic", {}).get("direction", "max")
+            _metric = trainer.config.get("genetic", {}).get("fitness", fitness)
+            best_result = tune_results.get_best_result(metric=_metric, mode=_mode)
+
+            # 4. Extraer los parámetros (config) del mejor resultado
+            best_params = best_result.config
+
+            # 5. Actualizar request_config con los mejores parámetros
+            request_config["train"].update(best_params)
+
+            # 6. Guardar los mejores parámetros en archivo YAML
+            with open(
+                trainer.ARTIFACTS_PATH + "/tune_results" + "/best_params.yaml", "w"
+            ) as f:
+                yaml.dump(request_config["train"], f)
+
+            # 7. Guardar duración del proceso de tuning en archivo YAML
+            with open(
+                trainer.ARTIFACTS_PATH + "/tune_results" + "/duration.yaml", "w"
+            ) as f:
+                final_result = best_result.metrics.get(_metric, 0.0)
+                end_time = datetime.now().isoformat()
+                yaml.dump(
+                    {
+                        "start_time": start_time,
+                        "end_time": end_time,
+                        "duration": str(
+                            datetime.fromisoformat(end_time)
+                            - datetime.fromisoformat(start_time)
+                        ),
+                        "best_fitness": final_result,
+                    },
+                    f,
+                )
+
+        # ---------------------------------------
+        # ---------------------------------------
+        #     Proceso de entrenamiento normal
+        # ---------------------------------------
+        # ---------------------------------------
+        train_params = request_config["train"]
+        results = trainer.train(config_train=train_params)
+        # ---------------------------------------
+        # ---------------------------------------
+
+        request_config["experiment_type"] = str(results.task)
+        request_config["train"]["results"] = results.results_dict
+
+        try:
+            final_result = request_config["train"]["results"][fitness]
+        except:
+            final_result = request_config["train"]["results"]["fitness"]
+
+    print(f"ResultadoFinal:{final_result}")
     return final_result
 
 

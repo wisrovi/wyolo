@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "wyolo"
-version = "1.0.0"
+version = "1.0.1"
 description = "Professional YOLO training library with MLOps integration"
 readme = "README.md"
 license = {file = "LICENSE"}

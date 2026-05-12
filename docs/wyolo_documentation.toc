@@ -1,0 +1,36 @@
+\contentsline {chapter}{Contents}{1}{chapter*.1}%
+\contentsline {chapter}{List of Figures}{3}{chapter*.2}%
+\contentsline {chapter}{List of Tables}{4}{chapter*.3}%
+\contentsline {chapter}{Listings}{5}{chapter*.4}%
+\contentsline {chapter}{\numberline {1}Executive Summary}{6}{chapter.1}%
+\contentsline {chapter}{\numberline {2}Introduction}{8}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Background}{9}{section.2.1}%
+\contentsline {section}{\numberline {2.2}Objectives}{9}{section.2.2}%
+\contentsline {chapter}{\numberline {3}Technical Architecture}{10}{chapter.3}%
+\contentsline {section}{\numberline {3.1}System Overview}{11}{section.3.1}%
+\contentsline {subsection}{\numberline {3.1.1}Orchestration Layer}{11}{subsection.3.1.1}%
+\contentsline {subsection}{\numberline {3.1.2}Domain Logic Layer}{11}{subsection.3.1.2}%
+\contentsline {subsection}{\numberline {3.1.3}Engine Wrapper Layer}{11}{subsection.3.1.3}%
+\contentsline {section}{\numberline {3.2}State Machine Workflow}{11}{section.3.2}%
+\contentsline {chapter}{\numberline {4}Installation Guide}{12}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Prerequisites}{13}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Local Installation}{13}{section.4.2}%
+\contentsline {section}{\numberline {4.3}Docker Deployment}{13}{section.4.3}%
+\contentsline {chapter}{\numberline {5}Code Examples and Configurations}{14}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Configuration Schema}{15}{section.5.1}%
+\contentsline {section}{\numberline {5.2}Core Trainer Implementation}{15}{section.5.2}%
+\contentsline {chapter}{\numberline {6}Practical Use Cases}{17}{chapter.6}%
+\contentsline {section}{\numberline {6.1}Automated Hyperparameter Sweeps}{18}{section.6.1}%
+\contentsline {section}{\numberline {6.2}Continuous Training (CT) Pipelines}{18}{section.6.2}%
+\contentsline {chapter}{\numberline {7}Performance Metrics and Expected Results}{19}{chapter.7}%
+\contentsline {section}{\numberline {7.1}Resource Optimization}{20}{section.7.1}%
+\contentsline {chapter}{\numberline {8}Best Practices and Troubleshooting}{21}{chapter.8}%
+\contentsline {section}{\numberline {8.1}Best Practices}{22}{section.8.1}%
+\contentsline {section}{\numberline {8.2}Troubleshooting Guide}{22}{section.8.2}%
+\contentsline {chapter}{\numberline {9}Conclusions and Future Work}{23}{chapter.9}%
+\contentsline {section}{\numberline {9.1}Conclusion}{24}{section.9.1}%
+\contentsline {section}{\numberline {9.2}Future Work}{24}{section.9.2}%
+\contentsline {chapter}{\numberline {10}Bibliography}{25}{chapter.10}%
+\contentsline {chapter}{Bibliography}{26}{chapter*.6}%
+\contentsline {chapter}{\numberline {11}Appendices}{27}{chapter.11}%
+\contentsline {section}{\numberline {11.1}Appendix A: Worker Entrypoint Script}{28}{section.11.1}%

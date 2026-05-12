@@ -1,13 +1,24 @@
 from datetime import datetime
 import os
-from typing import List
+import shutil
+from pathlib import Path
 from ultralytics import settings
+from glob import glob
+
+
+class ModeArtifacts:
+    COPY = "copy"
+    MOVE = "move"
 
 
 class Mlflow_setup:
     ARTIFACTS_PATH = "/wyolo/worker/train_service_results"
     SUMMARY_PATH = "/wyolo/worker/events/progress.yaml"
     STOP_TRAIN_PATH = "/wyolo/worker/events/stop_training.yaml"
+
+    COPY_MOVE = (
+        ModeArtifacts.MOVE
+    )  # Change to ModeArtifacts.COPY to copy files instead of moving
 
     worker_metadata = [
         "debug",
@@ -30,7 +41,22 @@ class Mlflow_setup:
         "WORKER_GPU_MEMORY",
     ]
 
+    EXTENSION_PERMIT = [
+        # ".pt",
+        # ".csv",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".svg",
+        ".yaml",
+        ".yml",
+        ".txt",
+        ".log",
+    ]
+
     def set_config_vars(self, config: dict):
+        self.config = config
+
         if "minio" in config and "mlflow" in config:
             settings.update({"mlflow": True})
 
@@ -50,6 +76,8 @@ class Mlflow_setup:
                 "study_name"
             )
             os.environ["MLFLOW_RUN_NAME"] = config.get("task_id")
+
+            os.environ["RAY_DISABLE_DOCKER_CPU_WARNING"] = "1"
         else:
             settings.update({"mlflow": False})
 
@@ -70,13 +98,19 @@ class Mlflow_setup:
             )
         )
 
-        base_tags_list.append(("author", config.get("metadata", {}).get("author", "NA")))
+        base_tags_list.append(
+            ("author", config.get("metadata", {}).get("author", "NA"))
+        )
 
         base_tags_list.append(("experiment_type", trainer.model._get_name()))
 
-        base_tags_list.append(("version", config.get("sweeper", {}).get("version", "NA")))
+        base_tags_list.append(
+            ("version", config.get("sweeper", {}).get("version", "NA"))
+        )
 
-        base_tags_list.append(("data_source", config.get("train", {}).get("data", "NA")))
+        base_tags_list.append(
+            ("data_source", config.get("train", {}).get("data", "NA"))
+        )
 
         for other_metadata in self.worker_metadata:
             tag_metadata = os.environ.get(other_metadata, None)
@@ -123,4 +157,70 @@ class Mlflow_setup:
         return metadata
 
     def artifacts_organice(self):
-        pass
+        organized_dirs = [
+            Path(self.ARTIFACTS_PATH) / "evaluation_metrics",
+            Path(self.ARTIFACTS_PATH) / "model_weights",
+            Path(self.ARTIFACTS_PATH) / "training_artifacts",
+            Path(self.ARTIFACTS_PATH) / "training_examples",
+            Path(self.ARTIFACTS_PATH) / "training_results",
+            Path(self.ARTIFACTS_PATH) / "validation_examples",
+        ]
+
+        for dir_path in organized_dirs:
+            dir_path.mkdir(parents=True, exist_ok=True)
+
+        # Get the training results directory
+        results_dir = self.config.get("tempfile")
+
+        patron = os.path.join(results_dir, "**/*")
+
+        for original_file in glob(patron, recursive=True):
+            # Check if the file has a permitted extension
+            extension = os.path.splitext(original_file)[1]
+            if extension not in self.EXTENSION_PERMIT:
+                continue
+
+            if os.path.isfile(original_file):
+                try:
+                    # Determine target directory based on file type/name
+                    if original_file.endswith(".pt") and (
+                        "best" in original_file.lower()
+                        or "last" in original_file.lower()
+                    ):
+                        destinity_dir = Path(self.ARTIFACTS_PATH) / "model_weights"
+                    elif (
+                        original_file.endswith(".csv")
+                        or "results" in original_file.lower()
+                        or "confusion_matrix" in original_file.lower()
+                    ):
+                        destinity_dir = Path(self.ARTIFACTS_PATH) / "evaluation_metrics"
+                    elif original_file.endswith((".png", ".jpg", ".jpeg", ".svg")) and (
+                        "sample" in original_file.lower()
+                        or "batch" in original_file.lower()
+                    ):
+                        destinity_dir = Path(self.ARTIFACTS_PATH) / "training_examples"
+                    elif original_file.endswith((".png", ".jpg", ".jpeg", ".svg")) and (
+                        "val" in original_file.lower()
+                        or "validation" in original_file.lower()
+                    ):
+                        destinity_dir = (
+                            Path(self.ARTIFACTS_PATH) / "validation_examples"
+                        )
+                    elif (
+                        original_file.endswith((".yaml", ".yml", ".txt", ".log"))
+                        or "args" in original_file.lower()
+                        or "config" in original_file.lower()
+                    ):
+                        destinity_dir = Path(self.ARTIFACTS_PATH) / "training_artifacts"
+                    else:
+                        destinity_dir = Path(self.ARTIFACTS_PATH) / "training_results"
+
+                    if self.COPY_MOVE == ModeArtifacts.COPY:
+                        shutil.copy2(str(original_file), str(destinity_dir))
+                    else:
+                        if os.path.exists(destinity_dir):
+                            shutil.rmtree(destinity_dir)
+                            os.makedirs(destinity_dir, exist_ok=True)
+                        shutil.move(str(original_file), str(destinity_dir))
+                except Exception as copy_error:
+                    print(copy_error)

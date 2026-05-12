@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.abspath('../../src'))
 project = 'wyolo'
 copyright = f'{datetime.now().year}, William Rodríguez'
 author = 'William Rodríguez'
-release = '1.0.0'
+release = '1.0.1'
 
 # -- General configuration ---------------------------------------------------
 extensions = [
