@@ -1,3 +1,11 @@
+<p align="center">
+  <a href="https://pypi.org/project/wyolo/"><img src="https://img.shields.io/pypi/v/wyolo?style=for-the-badge&logo=pypi&color=3b82f6" alt="PyPI version" /></a>
+  <a href="https://linkedin.com/in/wisrovi-rodriguez"><img src="https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn" /></a>
+  <a href="https://wisrovi.dev"><img src="https://img.shields.io/badge/Author-wisrovi.dev-111827?style=for-the-badge&logo=google-chrome&logoColor=white" alt="Portal" /></a>
+  <a href="https://orcid.org/0009-0005-0710-1861"><img src="https://img.shields.io/badge/ORCID-0009--0005--0710--1861-A6CE39?style=for-the-badge&logo=orcid&logoColor=white" alt="ORCID" /></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge" alt="License" /></a>
+</p>
+
 # wyolo: Professional YOLO MLOps Orchestrator
 
 [![Pylint Score](https://img.shields.io/badge/Pylint-9.5%2B-green.svg)](https://www.pylint.org/)
@@ -112,3 +120,16 @@ wyolo-train --config_path my_config.yaml
 - [Ultralytics Framework](https://docs.ultralytics.com/)
 - [MLflow MLOps Platform](https://mlflow.org/)
 - [wpipe Orchestration Library](https://github.com/wisrovi/wpipe)
+
+---
+
+## 👤 Autor & Afiliación Oficial
+
+* **William Steve Rodriguez Villamizar (Wisrovi)**
+* **Cargo:** Principal AI Engineer & Applied AI Solutions Architect | Scientific Researcher
+* 📧 **Email:** [wisrovi.rodriguez@gmail.com](mailto:wisrovi.rodriguez@gmail.com) / [wisrovi@wisrovi.dev](mailto:wisrovi@wisrovi.dev)
+* 🌐 **Portal Oficial:** [wisrovi.dev](https://wisrovi.dev)
+* 💼 **LinkedIn:** [wisrovi-rodriguez](https://www.linkedin.com/in/wisrovi-rodriguez/)
+* 🆔 **ORCID:** [0009-0005-0710-1861](https://orcid.org/0009-0005-0710-1861)
+* 📦 **PyPI:** [pypi.org/user/wisrovi/](https://pypi.org/user/wisrovi/)
+* 🐙 **GitHub:** [@wisrovi](https://github.com/wisrovi)
