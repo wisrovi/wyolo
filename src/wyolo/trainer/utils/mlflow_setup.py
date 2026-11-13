@@ -1,3 +1,5 @@
+"""MLflow setup and artifact management utilities for YOLO training."""
+
 from datetime import datetime
 import os
 import shutil
@@ -7,17 +9,21 @@ from glob import glob
 
 
 class ModeArtifacts:
+    """Mode for handling artifacts: copy or move."""
+
     COPY = "copy"
     MOVE = "move"
 
 
 class Mlflow_setup:
+    """Configures MLflow tracking and manages training artifact storage."""
+
     ARTIFACTS_PATH = "/wyolo/worker/train_service_results"
     SUMMARY_PATH = "/wyolo/worker/events/progress.yaml"
     STOP_TRAIN_PATH = "/wyolo/worker/events/stop_training.yaml"
 
     COPY_MOVE = (
-        ModeArtifacts.MOVE
+        ModeArtifacts.COPY
     )  # Change to ModeArtifacts.COPY to copy files instead of moving
 
     worker_metadata = [
@@ -42,8 +48,8 @@ class Mlflow_setup:
     ]
 
     EXTENSION_PERMIT = [
-        # ".pt",
-        # ".csv",
+        ".pt",
+        ".csv",
         ".png",
         ".jpg",
         ".jpeg",
@@ -55,6 +61,7 @@ class Mlflow_setup:
     ]
 
     def set_config_vars(self, config: dict):
+        """Sets environment variables and initializes MLflow tracking parameters."""
         self.config = config
 
         if "minio" in config and "mlflow" in config:
@@ -77,6 +84,30 @@ class Mlflow_setup:
             )
             os.environ["MLFLOW_RUN_NAME"] = config.get("task_id")
 
+            # Ensure the experiment exists and is not deleted, otherwise the
+            # ultralytics MLflow callback fails with a REST exception when
+            # calling set_experiment, which aborts on_train_end and leaves the
+            # artifacts (e.g. evaluation_metrics/results.csv) unpublished.
+            try:
+                import mlflow
+                from mlflow.tracking import MlflowClient
+
+                experiment_name = config.get("sweeper", {}).get(
+                    "study_name", "default_experiment"
+                )
+                client = MlflowClient()
+                experiment = client.get_experiment_by_name(experiment_name)
+                if experiment is not None and experiment.lifecycle_stage == "deleted":
+                    client.restore_experiment(experiment.experiment_id)
+                    print(
+                        f"--- [MLFLOW] Restored deleted experiment '{experiment_name}' ---"
+                    )
+                elif experiment is None:
+                    mlflow.create_experiment(experiment_name)
+                    print(f"--- [MLFLOW] Created experiment '{experiment_name}' ---")
+            except Exception as exc:
+                print(f"--- [MLFLOW] Could not prepare experiment: {exc} ---")
+
             os.environ["RAY_DISABLE_DOCKER_CPU_WARNING"] = "1"
         else:
             settings.update({"mlflow": False})
@@ -85,6 +116,7 @@ class Mlflow_setup:
         settings.reset()
 
     def get_tags(self, config: dict, trainer):
+        """Constructs list of experiment metadata tags for MLflow tracking."""
         base_tags_list = list()
 
         base_tags_list.append(
@@ -120,6 +152,7 @@ class Mlflow_setup:
         return base_tags_list
 
     def get_summary(self, config, trainer, elapsed_time):
+        """Generates real-time training progress dictionary for monitoring."""
         metadata = {}
 
         if "minio" in config and "mlflow" in config:
@@ -129,7 +162,11 @@ class Mlflow_setup:
             }
 
             trial_number = config.get("trial_number", 1)
-            total_trails = config.get("sweeper", 1).get("n_trials", 10)
+            sweeper_config = config.get("sweeper")
+            if isinstance(sweeper_config, dict):
+                total_trails = sweeper_config.get("n_trials", 10)
+            else:
+                total_trails = 10
 
             total_epochs = config.get("train", {}).get("epochs", 10)
 
@@ -156,7 +193,8 @@ class Mlflow_setup:
 
         return metadata
 
-    def artifacts_organice(self):
+    def artifacts_organice(self, trainer=None):
+        """Organizes output training artifacts and models into structured directories."""
         organized_dirs = [
             Path(self.ARTIFACTS_PATH) / "evaluation_metrics",
             Path(self.ARTIFACTS_PATH) / "model_weights",
@@ -167,7 +205,64 @@ class Mlflow_setup:
         ]
 
         for dir_path in organized_dirs:
+            if dir_path.exists():
+                shutil.rmtree(dir_path)
             dir_path.mkdir(parents=True, exist_ok=True)
+
+        # Write/Update results.json with current fitness value if available
+        if trainer is not None:
+            try:
+                import json
+                from slugify import slugify
+
+                fitness_key = self.config.get("sweeper", {}).get(
+                    "fitness", "metrics/accuracy_top1"
+                )
+                accuracy = 0.0
+
+                if hasattr(trainer, "metrics") and trainer.metrics:
+                    if fitness_key in trainer.metrics:
+                        accuracy = float(trainer.metrics[fitness_key])
+                    else:
+                        slugified_fitness = slugify(fitness_key)
+                        metrics = {
+                            slugify(k): float(v) for k, v in trainer.metrics.items()
+                        }
+                        if slugified_fitness in metrics:
+                            accuracy = metrics[slugified_fitness]
+                        else:
+                            # Robust fallback matching
+                            matching_keys = [
+                                k
+                                for k, v in trainer.metrics.items()
+                                if fitness_key in k or k in fitness_key
+                            ]
+                            if matching_keys:
+                                accuracy = float(trainer.metrics[matching_keys[0]])
+                                print(
+                                    f"--- [ARTIFACTS] Metric '{fitness_key}' not found directly. Using '{matching_keys[0]}': {accuracy} ---"
+                                )
+                            else:
+                                for k, v in metrics.items():
+                                    if "accuracy" in k or "top1" in k:
+                                        accuracy = v
+                                        break
+
+                results_file_path = os.path.join(self.ARTIFACTS_PATH, "results.json")
+                if accuracy > 0.0:
+                    with open(results_file_path, "w", encoding="utf-8") as f:
+                        json.dump(
+                            {
+                                "accuracy": round(float(accuracy), 4),
+                                "status": "provisional",
+                            },
+                            f,
+                            indent=4,
+                        )
+            except Exception as e:
+                print(
+                    f"Failed to write results.json during artifacts organization: {e}"
+                )
 
         # Get the training results directory
         results_dir = self.config.get("tempfile")
@@ -218,9 +313,6 @@ class Mlflow_setup:
                     if self.COPY_MOVE == ModeArtifacts.COPY:
                         shutil.copy2(str(original_file), str(destinity_dir))
                     else:
-                        if os.path.exists(destinity_dir):
-                            shutil.rmtree(destinity_dir)
-                            os.makedirs(destinity_dir, exist_ok=True)
                         shutil.move(str(original_file), str(destinity_dir))
                 except Exception as copy_error:
                     print(copy_error)
