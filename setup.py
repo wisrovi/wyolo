@@ -1,38 +1,38 @@
+"""Setup configuration for the wyolo package."""
+
+from pathlib import Path
+
 try:
     import tomllib  # Python 3.11+
 except ModuleNotFoundError:
-    # pip install tomli
     import tomli as tomllib  # Python <3.11
 
-from pathlib import Path
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 with open("pyproject.toml", "rb") as archivo:
     config_project = tomllib.load(archivo)
 
 this_directory = Path(__file__).parent
-long_description = (this_directory / "README.md").read_text()
+readme_file = this_directory / "README.md"
+long_description = (
+    readme_file.read_text(encoding="utf-8") if readme_file.exists() else ""
+)
 
 setup(
-    name=config_project["project"]["name"],  # Nombre del paquete en PyPI
+    name=config_project["project"]["name"],
     version=config_project["project"]["version"],
-    packages=find_packages(),
-    install_requires=[
-        "loguru>=0.7.0",
-    ],
-    classifiers=[
-        "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
-        "Operating System :: OS Independent",
-        "Topic :: Software Development :: Build Tools",
-        "Intended Audience :: Developers",
-    ],
+    packages=find_packages(where="src"),
+    package_dir={"": "src"},
+    package_data={"wyolo": ["py.typed", "*.mermaid", "**/*.mermaid"]},
+    install_requires=config_project["project"].get("dependencies", []),
+    extras_require=config_project["project"].get("optional-dependencies", {}),
+    classifiers=config_project["project"].get("classifiers", []),
     description=config_project["project"]["description"],
     long_description_content_type="text/markdown",
     long_description=long_description,
-    url="https://github.com/wisrovi/wutils",
+    url="https://github.com/wisrovi/wyoloservice2_worker",
     author="William Steve Rodriguez Villamizar",
     author_email="wisrovi.rodriguez@gmail.com",
     license="MIT",
-    python_requires=">=3.6",  # Requiere Python >=3.6 y <3.10
+    python_requires=config_project["project"].get("requires-python", ">=3.8"),
 )
