@@ -32,7 +32,7 @@ repos:
     rev: 25.9.0
     hooks:
       - id: black
-        language_version: python3.9
+        language_version: python3
 
   # 12/2026
   # - repo: https://github.com/pre-commit/mirrors-mypy
@@ -51,14 +51,15 @@ repos:
     hooks:
       - id: codespell
         args:
-          - "--skip=*.lock,*.csv,*.json,node_modules,venv,dist"
-          # - "--write-changes"  # Uncomment this line if you want precommits to automatically fix spelling errors
+          - "--skip=*.lock,*.csv,*.json,node_modules,venv,dist,*.tex"
+          - "-L=autor,previos"
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.1
     hooks:
       - id: ruff
         verbose: true
+        exclude: ^(tests|examples|docs)/
         args:
           - --select=D
           - --config=lint.pydocstyle.convention="google"
