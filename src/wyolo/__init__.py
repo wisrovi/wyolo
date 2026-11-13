@@ -6,18 +6,20 @@ from .inference import (
     TensorRTYOLO,
     YOLOInference,
     YOLOTensorRTAPI,
+    ensure_tensorrt_engine,
     export_to_engine,
     serve_yolo,
 )
 from .trainer.trainer_wrapper import create_trainer, train
 
-__version__ = "2.2.16"
+__version__ = "2.2.17"
 __author__ = "William Steve Rodriguez Villamizar"
 __email__ = "wisrovi.rodriguez@gmail.com"
 
 __all__ = [
     "train",
     "create_trainer",
+    "ensure_tensorrt_engine",
     "export_to_engine",
     "TensorRTYOLO",
     "YOLOInference",
