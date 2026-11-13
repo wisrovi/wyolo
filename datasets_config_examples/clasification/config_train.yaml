@@ -1,0 +1,45 @@
+model: "yolov8n-cls.pt"
+type: "yolo"
+
+train:
+  batch: -1
+  data: /wyolo/control_server/datasets/clasification/colorball.v8i.multiclass/
+  epochs: 3
+  imgsz: 640
+
+# val:
+#   conf: 0.01
+# test:
+#   conf: 0.01
+
+# genetic:
+#   activate: true
+#   min_epochs_by_ind: 5
+
+#   # base en generaciones y poblacion
+#   generations: 5
+#   poblation_size: 2
+
+#   # busqueda del genetico
+#   direction: "max"  
+#   fitness: metrics/accuracy_top1
+
+sweeper:
+  version: 1
+  # algorithm: optuna
+  # direction: maximize
+  study_name: "wyolo_clasificacion_colorball"
+  fitness: metrics/accuracy_top1
+  # sampler: "TPESampler"
+  # n_trials: 1
+  # search_space:
+  #   model: [ "choice", "yolov8n-cls.pt" ]
+  #   train:
+  #     imgsz: [ "choice", 416 ]
+  #     lr0: [ "loguniform", 1e-5, 1e-2 ]
+extras:
+  force_gpu: true
+metadata:
+  content: "Este es un experimento de clasificación de imágenes."
+  author: "William Rodriguez"
+  documentation: "Este modelo fue entrenado con datos del 2025."
