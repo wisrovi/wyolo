@@ -9,6 +9,7 @@ import numpy as np
 from PIL import Image
 from ultralytics import YOLO
 
+from .engine_exporter import ensure_tensorrt_engine
 from .tensorrt_engine import TRT_AVAILABLE, TensorRTYOLO
 
 
@@ -22,6 +23,7 @@ class YOLOInference:
         imgsz: int = 640,
         max_batch_size: int = 16,
         class_names: Optional[Dict[int, str]] = None,
+        auto_engine: bool = True,
     ) -> None:
         """Initialize YOLOInference predictor.
 
@@ -31,12 +33,20 @@ class YOLOInference:
             imgsz (int): Square image resolution expected by model input. Defaults to 640.
             max_batch_size (int): Maximum batch size for TensorRT engine. Defaults to 16.
             class_names (Optional[Dict[int, str]]): Class ID to name dictionary. Defaults to None.
+            auto_engine (bool): Automatically resolve or compile TensorRT engine on startup. Defaults to True.
 
         Raises:
             FileNotFoundError: If model file does not exist.
         """
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Model file not found: {model_path}")
+
+        if auto_engine and model_path.endswith(".pt"):
+            model_path = ensure_tensorrt_engine(
+                model_path=model_path,
+                imgsz=imgsz,
+                batch=max_batch_size,
+            )
 
         self.model_path: str = model_path
         self.conf: float = conf
