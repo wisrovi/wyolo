@@ -4,10 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.3.2] - 2026-11-16
+## [2.3.3] - 2026-11-16
 ### Fixed
+- **Synchronized Internal Package Version:** Updated internal `__version__` string in `src/wyolo/__init__.py` to match release 2.3.3.
 - **Permission-Unlocking Directory Purge in CleanFolderExtra:** Implemented recursive permission unlocking (`os.chmod(path, 0o777)`) and defensive error callbacks (`_onerror_unlock` + system-level purge) in `CleanFolderExtra`. Completely prevents write-protected or root-owned stale artifacts from persisting in mounted Docker volumes across consecutive training runs.
-- Bumped version to `2.3.2`.
+- Bumped version to `2.3.3`.
 
 ## [2.3.1] - 2026-11-16
 ### Fixed
