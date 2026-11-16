@@ -12,7 +12,7 @@ from .inference import (
 )
 from .trainer.trainer_wrapper import create_trainer, train
 
-__version__ = "2.2.17"
+__version__ = "2.2.18"
 __author__ = "William Steve Rodriguez Villamizar"
 __email__ = "wisrovi.rodriguez@gmail.com"
 
