@@ -21,7 +21,7 @@ from .inference import (
 from .trainer.trainer_wrapper import create_trainer, train
 from .wpipe import WYoloInferenceStep
 
-__version__ = "2.3.0"
+__version__ = "2.3.1"
 __author__ = "William Steve Rodriguez Villamizar"
 __email__ = "wisrovi.rodriguez@gmail.com"
 
