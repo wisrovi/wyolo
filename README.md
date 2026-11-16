@@ -327,6 +327,10 @@ All unit tests can be executed inside a clean Docker container matching the prod
 ---
 
 ## 📜 Changelog
+### Version 2.3.2 - 2026-11-16
+* **Permission-Unlocking Directory Purge in CleanFolderExtra:** Implemented recursive permission unlocking (`os.chmod(path, 0o777)`) and defensive error callbacks (`_onerror_unlock` + system-level purge) in `CleanFolderExtra`. Completely prevents write-protected or root-owned stale artifacts from persisting in mounted Docker volumes across consecutive training runs.
+* **Version Update:** Bumped version to `2.3.2`.
+
 ### Version 2.3.1 - 2026-11-16
 * **Exhaustive Artifacts Isolation in CleanFolderExtra:** Enhanced `CleanFolderExtra` to rigorously walk and remove all individual files and subdirectories inside `extras/model_focus/` and other output directories, avoiding leftover heatmaps or predictions across executions on mounted Docker volumes.
 * **Version Update:** Bumped version to `2.3.1`.
