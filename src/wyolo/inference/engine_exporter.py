@@ -12,18 +12,22 @@ def export_to_engine(
     model_path: str,
     imgsz: int = 640,
     half: bool = True,
+    int8: bool = False,
+    data: Optional[str] = None,
     dynamic: bool = True,
     batch: int = 16,
     nms: bool = True,
     device: int = 0,
     workspace: Optional[int] = None,
 ) -> str:
-    """Export a YOLO PyTorch (.pt) model to TensorRT (.engine) format with FP16 and NMS.
+    """Export a YOLO PyTorch (.pt) model to TensorRT (.engine) format with quantization and NMS.
 
     Args:
         model_path (str): Path to the source .pt model weights file.
         imgsz (int): Target square image dimension for inference. Defaults to 640.
         half (bool): Enable FP16 half-precision quantization. Defaults to True.
+        int8 (bool): Enable INT8 8-bit quantization with calibration. Defaults to False.
+        data (Optional[str]): Path to dataset YAML configuration for INT8 calibration.
         dynamic (bool): Enable dynamic batch size support (1 to batch). Defaults to True.
         batch (int): Maximum batch size supported by the engine. Defaults to 16.
         nms (bool): Embed Non-Maximum Suppression (EfficientNMS) inside the engine. Defaults to True.
@@ -40,9 +44,10 @@ def export_to_engine(
     if not os.path.exists(model_path):
         raise FileNotFoundError(f"Source model file not found: {model_path}")
 
+    quant_mode = "INT8" if int8 else ("FP16" if half else "FP32")
     logger.info(
-        f"Exporting model '{model_path}' to TensorRT engine (imgsz={imgsz}, "
-        f"half={half}, dynamic={dynamic}, batch={batch}, nms={nms}, device={device})..."
+        f"Exporting model '{model_path}' to TensorRT engine [{quant_mode}] (imgsz={imgsz}, "
+        f"dynamic={dynamic}, batch={batch}, nms={nms}, device={device})..."
     )
 
     try:
@@ -51,11 +56,14 @@ def export_to_engine(
             "format": "engine",
             "imgsz": imgsz,
             "half": half,
+            "int8": int8,
             "dynamic": dynamic,
             "batch": batch,
             "nms": nms,
             "device": device,
         }
+        if data is not None:
+            export_kwargs["data"] = data
         if workspace is not None:
             export_kwargs["workspace"] = workspace
 
@@ -83,6 +91,8 @@ def ensure_tensorrt_engine(
     model_path: str,
     imgsz: int = 640,
     half: bool = True,
+    int8: bool = False,
+    data: Optional[str] = None,
     dynamic: bool = True,
     batch: int = 16,
     nms: bool = True,
@@ -93,7 +103,7 @@ def ensure_tensorrt_engine(
 
     Checks if a compiled TensorRT (.engine) file already exists for the given
     PyTorch model (.pt). If not present, checks for CUDA and TensorRT availability
-    and compiles the model on startup with FP16, dynamic batching, and GPU NMS.
+    and compiles the model on startup with FP16/INT8, dynamic batching, and GPU NMS.
     Handles read-only directories by writing engines to a cache directory.
     Falls back gracefully to the original .pt model if TensorRT or GPU is unavailable.
 
@@ -101,6 +111,8 @@ def ensure_tensorrt_engine(
         model_path (str): Path to the model file (.pt or .engine).
         imgsz (int): Target square image dimension for inference. Defaults to 640.
         half (bool): Enable FP16 half-precision quantization. Defaults to True.
+        int8 (bool): Enable INT8 8-bit quantization with calibration. Defaults to False.
+        data (Optional[str]): Path to dataset YAML configuration for INT8 calibration.
         dynamic (bool): Enable dynamic batch size support. Defaults to True.
         batch (int): Maximum batch size supported by the engine. Defaults to 16.
         nms (bool): Embed Non-Maximum Suppression inside the engine. Defaults to True.
@@ -176,6 +188,8 @@ def ensure_tensorrt_engine(
             model_path=export_source,
             imgsz=imgsz,
             half=half,
+            int8=int8,
+            data=data,
             dynamic=dynamic,
             batch=batch,
             nms=nms,
