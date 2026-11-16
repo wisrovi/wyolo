@@ -26,7 +26,7 @@ except (ImportError, Exception):
     train = None  # type: ignore
 from .wpipe import WYoloInferenceStep
 
-__version__ = "2.3.1"
+__version__ = "2.3.3"
 __author__ = "William Steve Rodriguez Villamizar"
 __email__ = "wisrovi.rodriguez@gmail.com"
 
