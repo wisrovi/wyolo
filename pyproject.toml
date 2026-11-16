@@ -7,7 +7,7 @@ packages = ["src/wyolo"]
 
 [project]
 name = "wyolo"
-version = "2.2.18"
+version = "2.3.0"
 description = "Professional YOLO training library with MLOps integration and TensorRT accelerated inference"
 readme = "README.md"
 license = {file = "LICENSE"}
