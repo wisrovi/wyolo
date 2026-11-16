@@ -44,8 +44,44 @@ class TestEngineExporter:
             format="engine",
             imgsz=640,
             half=True,
+            int8=False,
             dynamic=True,
             batch=16,
+            nms=True,
+            device=0,
+        )
+
+    @patch("wyolo.inference.engine_exporter.YOLO")
+    @patch("os.path.exists")
+    def test_export_int8_success(
+        self, mock_exists: MagicMock, mock_yolo: MagicMock
+    ) -> None:
+        """Verify successful INT8 model export with calibration dataset."""
+        mock_exists.return_value = True
+        mock_model = MagicMock()
+        mock_model.export.return_value = "/tmp/test_int8_model.engine"
+        mock_yolo.return_value = mock_model
+
+        result = export_to_engine(
+            model_path="/tmp/test_model.pt",
+            imgsz=640,
+            half=False,
+            int8=True,
+            data="coco.yaml",
+            dynamic=False,
+            batch=8,
+            nms=True,
+        )
+
+        assert result == "/tmp/test_int8_model.engine"
+        mock_model.export.assert_called_once_with(
+            format="engine",
+            imgsz=640,
+            half=False,
+            int8=True,
+            data="coco.yaml",
+            dynamic=False,
+            batch=8,
             nms=True,
             device=0,
         )
