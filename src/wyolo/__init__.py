@@ -18,7 +18,12 @@ from .inference import (
     is_torch_cuda_tensor,
     serve_yolo,
 )
-from .trainer.trainer_wrapper import create_trainer, train
+
+try:
+    from .trainer.trainer_wrapper import create_trainer, train
+except (ImportError, Exception):
+    create_trainer = None  # type: ignore
+    train = None  # type: ignore
 from .wpipe import WYoloInferenceStep
 
 __version__ = "2.3.1"
