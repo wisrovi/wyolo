@@ -24,6 +24,9 @@ class YOLOInference:
         max_batch_size: int = 16,
         class_names: Optional[Dict[int, str]] = None,
         auto_engine: bool = True,
+        half: bool = True,
+        int8: bool = False,
+        data: Optional[str] = None,
     ) -> None:
         """Initialize YOLOInference predictor.
 
@@ -34,6 +37,9 @@ class YOLOInference:
             max_batch_size (int): Maximum batch size for TensorRT engine. Defaults to 16.
             class_names (Optional[Dict[int, str]]): Class ID to name dictionary. Defaults to None.
             auto_engine (bool): Automatically resolve or compile TensorRT engine on startup. Defaults to True.
+            half (bool): Enable FP16 quantization when compiling TensorRT engine. Defaults to True.
+            int8 (bool): Enable INT8 quantization when compiling TensorRT engine. Defaults to False.
+            data (Optional[str]): Dataset YAML path for INT8 calibration. Defaults to None.
 
         Raises:
             FileNotFoundError: If model file does not exist.
@@ -45,6 +51,9 @@ class YOLOInference:
             model_path = ensure_tensorrt_engine(
                 model_path=model_path,
                 imgsz=imgsz,
+                half=half,
+                int8=int8,
+                data=data,
                 batch=max_batch_size,
             )
 
