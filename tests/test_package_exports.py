@@ -9,7 +9,7 @@ def test_wyolo_exports() -> None:
     """Validates that wyolo exposes expected public API."""
     assert callable(train)
     assert callable(create_trainer)
-    assert __version__ == "2.2.17"
+    assert __version__ == "2.2.18"
     assert "train" in wyolo.__all__
     assert "create_trainer" in wyolo.__all__
     assert "ensure_tensorrt_engine" in wyolo.__all__
