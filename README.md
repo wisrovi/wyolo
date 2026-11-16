@@ -173,49 +173,82 @@ print(f"INT8 Engine ready: {engine_int8}")
 
 ### 3. Unified Python Predictor (`YOLOInference`)
 
-The `YOLOInference` engine transparently accepts `.engine` or `.pt` paths. If a `.pt` model is provided, it automatically verifies or compiles the optimized TensorRT engine on the fly:
+The `YOLOInference` engine transparently accepts `.engine` or `.pt` paths. If a `.pt` model is provided, it automatically verifies or compiles the optimized TensorRT engine on the fly.
+
+`YOLOInference` features a **polymorphic input interface** (`predict(source)`) supporting zero-boilerplate execution across any input type:
 
 ```python
 import cv2
+import torch
 from wyolo.inference import YOLOInference
 
-# Initialize predictor with auto-engine compilation and FP16 quantization
+# Initialize unified predictor with integer quantization (quantization=16 -> FP16 & batch=16)
+# Also enables optional dynamic micro-batching and CPU/GPU latency profiling
 predictor = YOLOInference(
-    model_path="runs/train/weights/best.pt",  # Automatically exports to .engine if needed
+    model_path="runs/train/weights/best.pt",
     conf=0.25,
     imgsz=640,
-    half=True,         # Request FP16 quantization
-    device="cuda:0"
+    quantization=16,          # Integer quantization: 8 (INT8), 16 (FP16), 32 (FP32). Batch defaults to same int!
+    profiling=True,           # Latency breakdown profiler with CPU bottleneck warning
+    enable_microbatching=True # Micro-batching window (groups concurrent Kafka requests into GPU batches)
 )
 
 # 1. Prediction from Filepath
 results = predictor.predict("test_image.jpg")
-print(f"Detected {len(results)} objects.")
 
-# 2. Prediction from OpenCV / NumPy Array (Zero-Copy)
+# 2. Prediction from OpenCV / NumPy Array
 img_bgr = cv2.imread("test_image.jpg")
 results = predictor.predict(img_bgr)
 
-# 3. Direct Prediction from Raw Image Bytes (Ideal for Kafka / Network Streams)
+# 3. Direct Prediction from Raw Image Bytes (Kafka / HTTP)
 with open("test_image.jpg", "rb") as f:
-    raw_payload = f.read()
-results = predictor.predict_bytes(raw_payload)
+    results = predictor.predict(f.read())
 
-# 4. High-Throughput Batch Prediction
+# 4. Direct Claim-Check Resolution from Redis RAM (Zero Host Disk Overhead)
+# Transparently fetches, decodes, and predicts from 'wkafka:claim:<uuid>' tokens
+results = predictor.predict("wkafka:claim:7f92023a-5f33-4f91-8db2-2df28381283e")
+
+# 5. Zero-Copy GPU Tensor Ingestion (Bypasses CPU & Host RAM copies)
+gpu_tensor = torch.zeros((3, 640, 640), device="cuda:0")
+results = predictor.predict(gpu_tensor)
+
+# 6. Non-Blocking Asynchronous Inference
+future = predictor.predict_async(img_bgr)
+# Continue doing other processing...
+results = future.result(timeout=1.0)
+
+# 7. High-Throughput Batch Prediction
 batch_results = predictor.predict_batch(["cam1.jpg", "cam2.jpg", "cam3.jpg"])
 ```
 
-#### Canonical Detection Output Format
-All predictions return a clean NumPy array where each row represents a detected bounding box:
+### 4. Native WPipe Pipeline Step (`WYoloInferenceStep`)
+
+For seamless integration into PERSEUS-AI and WPipe microservice pipelines, `wyolo` provides a native `@step` class:
+
 ```python
-# detections array format:
-# [x1, y1, x2, y2, confidence, class_id]
-for det in results:
-    x1, y1, x2, y2, conf, cls_id = det
-    print(f"Class {int(cls_id)} ({conf:.2f}): [{x1:.1f}, {y1:.1f}, {x2:.1f}, {y2:.1f}]")
+from wpipe.pipeline import Pipeline
+from wyolo.wpipe import WYoloInferenceStep
+
+pipeline = Pipeline("PerseusInferencePipeline")
+pipeline.set_steps([
+    WYoloInferenceStep(
+        model_path="/app/models/yolov8n.engine",
+        conf=0.35,
+        imgsz=640,
+        quantization=16,
+        classes_filter=["car", "truck"],
+        input_key="image",
+        output_key="model_results",
+        profiling=True,
+    )
+])
+
+# Context can contain raw bytes, NumPy array, or Claim-Check token string!
+result_ctx = pipeline.run({"image": "wkafka:claim:abc-123-uuid"})
+print(result_ctx["model_results"])
 ```
 
-### 4. High-Throughput LitServe Microservice
+### 5. High-Throughput LitServe Microservice
 
 Deploy an enterprise REST API serving TensorRT predictions with adaptive dynamic batching in single line:
 
