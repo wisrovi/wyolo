@@ -1,5 +1,9 @@
 """Module for exporting YOLO PyTorch models to TensorRT engine format."""
 
+# pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
+# pylint: disable=too-many-branches,too-many-return-statements,too-many-statements
+# pylint: disable=import-outside-toplevel,broad-exception-caught
+
 import os
 import shutil
 from typing import Optional
@@ -13,9 +17,10 @@ def export_to_engine(
     imgsz: int = 640,
     half: bool = True,
     int8: bool = False,
+    quantization: Optional[int] = None,
     data: Optional[str] = None,
     dynamic: bool = True,
-    batch: int = 16,
+    batch: Optional[int] = None,
     nms: bool = True,
     device: int = 0,
     workspace: Optional[int] = None,
@@ -27,10 +32,12 @@ def export_to_engine(
         imgsz (int): Target square image dimension for inference. Defaults to 640.
         half (bool): Enable FP16 half-precision quantization. Defaults to True.
         int8 (bool): Enable INT8 8-bit quantization with calibration. Defaults to False.
+        quantization (Optional[int]): Integer quantization mode (8, 16, or 32).
+            Overrides half/int8 and sets batch = quantization if batch is None.
         data (Optional[str]): Path to dataset YAML configuration for INT8 calibration.
         dynamic (bool): Enable dynamic batch size support (1 to batch). Defaults to True.
-        batch (int): Maximum batch size supported by the engine. Defaults to 16.
-        nms (bool): Embed Non-Maximum Suppression (EfficientNMS) inside the engine. Defaults to True.
+        batch (Optional[int]): Maximum batch size supported by the engine. Defaults to 16.
+        nms (bool): Embed Non-Maximum Suppression inside the engine. Defaults to True.
         device (int): CUDA device index to compile the engine on. Defaults to 0.
         workspace (Optional[int]): TensorRT workspace memory limit in GiB. Defaults to None.
 
@@ -43,6 +50,31 @@ def export_to_engine(
     """
     if not os.path.exists(model_path):
         raise FileNotFoundError(f"Source model file not found: {model_path}")
+
+    # Resolve integer quantization simplification rule:
+    # 8 -> INT8 & batch=8; 16 -> FP16 & batch=16; 32 -> FP32 & batch=32
+    if quantization is not None:
+        if quantization == 8:
+            int8 = True
+            half = False
+            batch = batch or 8
+        elif quantization == 16:
+            int8 = False
+            half = True
+            batch = batch or 16
+        elif quantization == 32:
+            int8 = False
+            half = False
+            batch = batch or 32
+        else:
+            logger.warning(
+                f"Unknown quantization integer {quantization}. Defaulting to FP16 (16)."
+            )
+            int8 = False
+            half = True
+            batch = batch or 16
+    else:
+        batch = batch or (8 if int8 else 16)
 
     quant_mode = "INT8" if int8 else ("FP16" if half else "FP32")
     logger.info(
@@ -76,7 +108,7 @@ def export_to_engine(
                 exported_path = expected_engine
             else:
                 raise RuntimeError(
-                    f"TensorRT export completed but engine file could not be found at {exported_path}"
+                    f"TensorRT export completed but engine file not found: {exported_path}"
                 )
 
         logger.info(f"TensorRT engine successfully exported to: {exported_path}")
@@ -92,9 +124,10 @@ def ensure_tensorrt_engine(
     imgsz: int = 640,
     half: bool = True,
     int8: bool = False,
+    quantization: Optional[int] = None,
     data: Optional[str] = None,
     dynamic: bool = True,
-    batch: int = 16,
+    batch: Optional[int] = None,
     nms: bool = True,
     device: int = 0,
     cache_dir: Optional[str] = None,
@@ -112,9 +145,10 @@ def ensure_tensorrt_engine(
         imgsz (int): Target square image dimension for inference. Defaults to 640.
         half (bool): Enable FP16 half-precision quantization. Defaults to True.
         int8 (bool): Enable INT8 8-bit quantization with calibration. Defaults to False.
+        quantization (Optional[int]): Integer quantization mode (8, 16, or 32).
         data (Optional[str]): Path to dataset YAML configuration for INT8 calibration.
         dynamic (bool): Enable dynamic batch size support. Defaults to True.
-        batch (int): Maximum batch size supported by the engine. Defaults to 16.
+        batch (Optional[int]): Maximum batch size supported by the engine. Defaults to None.
         nms (bool): Embed Non-Maximum Suppression inside the engine. Defaults to True.
         device (int): CUDA device index to compile the engine on. Defaults to 0.
         cache_dir (Optional[str]): Custom directory for compiled engines.
@@ -124,6 +158,21 @@ def ensure_tensorrt_engine(
     """
     if not model_path or model_path.endswith(".engine"):
         return model_path
+
+    if quantization is not None:
+        if quantization == 8:
+            int8 = True
+            half = False
+            batch = batch or 8
+        elif quantization == 16:
+            int8 = False
+            half = True
+            batch = batch or 16
+        elif quantization == 32:
+            int8 = False
+            half = False
+            batch = batch or 32
+    batch = batch or (8 if int8 else 16)
 
     # Check for adjacent engine
     adjacent_engine = os.path.splitext(model_path)[0] + ".engine"
@@ -159,7 +208,7 @@ def ensure_tensorrt_engine(
 
     # Verify TensorRT availability
     try:
-        import tensorrt  # noqa: F401
+        import tensorrt  # noqa: F401 # pylint: disable=unused-import
     except ImportError:
         logger.info(
             f"TensorRT not installed in environment. Using PyTorch model: {model_path}"
@@ -219,7 +268,7 @@ def ensure_tensorrt_engine(
 
     except Exception as exc:
         logger.warning(
-            f"TensorRT export failed ({exc}). Gracefully falling back to PyTorch model: {model_path}"
+            f"TensorRT export failed ({exc}). Falling back to PyTorch: {model_path}"
         )
         if (
             not is_writable
