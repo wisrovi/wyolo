@@ -39,10 +39,30 @@ class CleanFolderExtra:
         """
         project_path = ctx.project_path
 
+        extras_root = os.path.join(project_path, "extras")
+        if os.path.exists(extras_root):
+            for item in os.listdir(extras_root):
+                item_path = os.path.join(extras_root, item)
+                if os.path.isfile(item_path) or os.path.islink(item_path):
+                    try:
+                        os.remove(item_path)
+                    except Exception:
+                        pass
+
         for folder in self.FOLDER_CLEAN:
             folder_path = os.path.join(project_path, "extras", folder)
             if os.path.exists(folder_path):
-                # clean the folder by removing all its contents
+                for root, dirs, files in os.walk(folder_path, topdown=False):
+                    for f in files:
+                        try:
+                            os.remove(os.path.join(root, f))
+                        except Exception:
+                            pass
+                    for d in dirs:
+                        try:
+                            shutil.rmtree(os.path.join(root, d), ignore_errors=True)
+                        except Exception:
+                            pass
                 shutil.rmtree(folder_path, ignore_errors=True)
 
             # Recreate empty folder
